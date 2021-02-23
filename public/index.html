@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      .administration-content {
+        width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <router-view></router-view>
+    </div>
+    <script src="./lib/vue_2.5.22.js"></script>
+    <script src="./lib/vue-router_3.0.2.js"></script>
+    <script src="./lib/axios.min.js"></script>
+    <script>
+      Vue.prototype.$bus = new Vue()
+      const login = {
+        template: `
+        <div>
+        <input type="text" v-model="username" />
+        <input type="password" v-model="pwd" />
+        <button @click="subFrom">登录</button>
+      </div>
+        `,
+        data() {
+          return {
+            username: 'liuyunxi',
+            pwd: '11081201',
+          }
+        },
+        methods: {
+          async subFrom() {
+            let res = await axios.post('api/login', {
+              username: this.username,
+              pwd: this.pwd,
+            })
+            if (res.data.status === 10000) {
+              this.$router.push('/administration')
+              localStorage.setItem('token', res.data.data.token)
+              this.$bus.$emit('tokenMsg', res.data.data.token)
+            }
+          },
+        },
+      }
+
+      const addBlog = {
+        template: `
+        <div>
+          <div @click="skipAdmin">返回管理页面</div>
+        标题<input type="text" v-model="title">
+        内容<textarea name="" id="" cols="30" rows="10" v-model="content"></textarea>
+        <button @click="clickAddBlog">添加</button>
+      </div>
+        `,
+        data() {
+          return {
+            title: undefined,
+            content: undefined,
+          }
+        },
+        methods: {
+          skipAdmin() {
+            this.$router.push('/administration')
+          },
+          async clickAddBlog() {
+            let res = await axios.post('/api/increase', {
+              title: this.title,
+              content: this.content,
+            })
+            console.log(res)
+          },
+        },
+      }
+
+      const administration = {
+        template: `<div>
+          <div><button @click="skipAddBlog">添加博客</button></div>
+          <div><button @click="skipIndex">首页</button></div>
+          <table>
+            <thead>
+              <tr>
+                <td v-for="item in formData" :key="item.id">{{item.content}}</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item1 in articleContent" :key="item1.id">
+                <td>{{item1._id}}</td>
+                <td>{{item1.title}}</td>
+                <td><div class="administration-content">{{item1.content}}</div></td>
+                <td><button @click="delBlogClick(item1._id)">删除</button></td>
+                <td><button @click="changeBlogClick(item1._id)">修改</button></td>
+              </tr>
+            </tbody>
+          </table>
+      </div>`,
+        data() {
+          return {
+            formData: [
+              {
+                id: 1,
+                content: '序号',
+              },
+              {
+                id: 2,
+                content: '标题',
+              },
+              {
+                id: 3,
+                content: '大概内容',
+              },
+              {
+                id: 4,
+                content: '删除',
+              },
+              {
+                id: 5,
+                content: '修改',
+              },
+            ],
+            articleContent: [],
+          }
+        },
+        created() {
+          this.blogData()
+        },
+        methods: {
+          async blogData(pagingCount = 8, pageNumber = 1) {
+            let res = await axios.post('api/queryPage', {
+              pagingCount,
+              pageNumber,
+            })
+            this.articleContent = res.data
+          },
+          async delBlogClick(id) {
+            let res = await axios.get(`/api/${id}/del`)
+            this.blogData()
+          },
+          changeBlogClick(id) {
+            this.$router.push(`/changeBlog/${id}`)
+          },
+          skipAddBlog() {
+            this.$router.push('/addBlog')
+          },
+          skipIndex() {
+            this.$router.push('/')
+          },
+        },
+      }
+
+      const changeBlog = {
+        template: `<div>
+          <button @click="skipAdmin">返回管理页</button>
+            标题：<input type="text" v-model="title"/>
+            内容<textarea name="" id="" cols="30" rows="10" v-model="content"></textarea>
+        <button @click="clickChangeBlog">修改</button>
+          </div>`,
+        data() {
+          return {
+            _id: '',
+            title: '',
+            content: '',
+          }
+        },
+        created() {
+          const id = this.$route.params.id
+          this._id = this.$route.params.id
+          this.queryOneBlog(id)
+        },
+        methods: {
+          async queryOneBlog(id) {
+            let res = await axios.get(`/api/${id}/query`)
+            // console.log(res)
+            this.title = res.data.data.title
+            this.content = res.data.data.content
+          },
+          async clickChangeBlog() {
+            const id = this._id
+            let res = await axios.post(`/api/${id}/change`, {
+              title: this.title,
+              content: this.content,
+            })
+            console.log(res)
+          },
+          skipAdmin() {
+            this.$router.push('/administration')
+          },
+        },
+      }
+
+      const exhibition = {
+        template: `<div><p>展示内容</p></div>`,
+      }
+
+      const notFound = {
+        template: `<div>
+          <p>not found</p>
+        </div>`,
+      }
+
+      const router = new VueRouter({
+        routes: [
+          {
+            path: '/',
+            name: 'exhibition',
+            component: exhibition,
+            meta: {
+              title: '博客首页',
+            },
+          },
+          {
+            path: '/exhibition',
+            redirect: '/',
+          },
+          {
+            path: '/login',
+            name: 'login',
+            component: login,
+            meta: {
+              title: '登录',
+            },
+          },
+          {
+            path: '/administration',
+            name: 'administration',
+            component: administration,
+            meta: {
+              title: '管理',
+              requireAuth: true,
+            },
+          },
+          {
+            path: '/addBlog',
+            name: 'addBlog',
+            component: addBlog,
+            meta: {
+              title: '添加',
+              requireAuth: true,
+            },
+          },
+          {
+            path: '/changeBlog/:id',
+            name: 'changeBlog',
+            component: changeBlog,
+            meta: {
+              title: '修改',
+              requireAuth: true,
+            },
+          },
+          {
+            path: '*',
+            name: 'notfound',
+            component: notFound,
+          },
+        ],
+      })
+      // 导航后置守卫
+      router.afterEach((to, from) => {
+        // to and from are both route objects.
+        window.document.title = to.meta.title
+      })
+
+      router.beforeEach((to, from, next) => {
+        // console.log('to', to)
+        // console.log('from', from)
+
+        if (to.meta.requireAuth) {
+          const flag = localStorage.getItem('token') ? false : true
+          if (flag) {
+            next({
+              path: '/login',
+            })
+            return
+          }
+          next()
+        } else {
+          next()
+        }
+      })
+
+      const app = new Vue({
+        el: '#app',
+        router,
+        data: {},
+        components: {
+          login,
+          notFound,
+          administration,
+          exhibition,
+          addBlog,
+          changeBlog,
+        },
+      })
+    </script>
+  </body>
+</html>
